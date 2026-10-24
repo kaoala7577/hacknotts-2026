@@ -23,7 +23,7 @@
       <height>120</height>
      </rect>
     </property>
-    <layout class="QVBoxLayout" name="verticalLayout_3">
+    <layout class="QVBoxLayout" name="mainHomeWidget">
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
@@ -89,7 +89,7 @@
       </layout>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton">
+      <widget class="QPushButton" name="studyNowButton">
        <property name="text">
         <string>Study Now!</string>
        </property>
