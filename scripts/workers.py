@@ -1,9 +1,11 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtGui import QImage
 import cv2
+import numpy as np
 
 class CameraWorker(QThread):
     frame_ready = pyqtSignal(QImage)
+    landmark_ready = pyqtSignal(np.ndarray)
 
     def __init__(self, camera_index=0, cv_engine=None):
         super().__init__()
@@ -32,6 +34,12 @@ class CameraWorker(QThread):
 
             # mirror the user
             frame = cv2.flip(frame, 1)
+
+            # when recording, process hand positions
+            if self.is_recording and self.cv_engine:
+                landmarks = self.cv_engine.extract_landmarks(frame)
+                if landmarks is not None:
+                    self.landmark_ready.emit(landmarks)
 
             height, width, colours = frame.shape
             bytes_per_line = colours * width
