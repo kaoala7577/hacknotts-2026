@@ -3,7 +3,7 @@ import sqlite3
 import os
 import logging
 import numpy as np
-from .word import Word
+from ..models.word import Word
 
 class DatabaseManager: 
 	def __init__(self)-> None:
@@ -38,8 +38,7 @@ class DatabaseManager:
 			logging.warning(f"Word '{word}' not found in the database.")
 			return None
 		
-	def add_sign_variation(self, word_id: int, landmark_blob: bytes, video_path: str) -> int:
-		cursor = self.conn.cursor()
+	def add_sign_variation(self, word_id: int, landmark_blob: bytes, video_path: str) -> int: pass
 
 	def get_sign_variations(self, word_id: int) -> list: pass 
 	def get_due_words(self, limit: int = 10) -> list: pass 
