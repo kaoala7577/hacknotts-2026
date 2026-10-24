@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
+from enum import Enum
 
 VIDEO_FOLDER = "./test_videos/references"
 VIDEO_FILENAMES = os.listdir(VIDEO_FOLDER)
@@ -13,7 +14,22 @@ for f in VIDEO_FILENAMES:
 	video_paths.append(f"{VIDEO_FOLDER}/{f}")
 VIDEO_FILENAME = "name_ref_1.mp4"
 REF_FILENAME = "./test_videos/name_comparison.mp4"
+BAD_REF_FILENAME = "./test_videos/hello_comparison.mp4"
 TASK_FILE =  Path(__file__).parent / "hand_landmarker.task"
+
+class SignPassMark(float, Enum):
+	EXCEPTIONAL = 0.1
+	PASS = 0.25
+	FAIL = float('inf')
+
+	@classmethod
+	def evaluate(self, score: float) -> 'SignPassMark':
+		if score <= self.EXCEPTIONAL:
+			return self.EXCEPTIONAL
+		elif score <= self.PASS:
+			return self.PASS
+		else:
+			return self.FAIL
 
 class SignRecognitionEngine:
 	def __init__(self, task_file_path: str):
@@ -107,22 +123,35 @@ class SignRecognitionEngine:
 
 	def play_video(self, cv_frame: np.ndarray) -> None: pass
 
-	def compute_dtw_distance(self, references: np.ndarray, comparison: np.ndarray) -> float:
+	def compute_dtw_distance(self, references: np.ndarray, comparison: np.ndarray) -> np.ndarray:
 		distances = []
 		for refs in references:
-			dtw_distance, _ = fastdtw(comparison, refs, dist=euclidean)
-			distances.append(dtw_distance)
-		return min(distances)
+			dtw_distance, warp = fastdtw(comparison, refs, dist=euclidean)
+			warp_size = len(warp)
+			# account for differing video lengths
+			normalised_distance = dtw_distance / warp_size
+			distances.append(normalised_distance)
+		return np.array(distances, dtype=np.float32)
 
-	def evaluate_sign(self, test_landmarks: np.ndarray, reference_list: np.ndarray) -> float: pass 
+	def evaluate_sign(self, references: np.ndarray, comparison: np.ndarray) -> float:
+		distances = self.compute_dtw_distance(references, comparison)
+		closest = float(np.min(distances))
+		result_tier = SignPassMark.evaluate(closest)
+		print(f"Result: {closest:.2f} ({result_tier.name})")
+		return result_tier
+		
 	def select_best_take(self, takes_list: list[np.ndarray]) -> int: pass 
 
 engine = SignRecognitionEngine(str(TASK_FILE))
 videos = engine.videos_to_mp_image(video_paths)
 ref = engine.video_to_mp_image(REF_FILENAME)
+bad_ref = engine.video_to_mp_image(BAD_REF_FILENAME)
 landmarks = []
 for video in videos:
 	landmarks.append(engine.extract_landmarks(video))
 
 ref_landmarks = engine.extract_landmarks(ref)
-print(engine.compute_dtw_distance(landmarks, ref_landmarks))
+bad_ref_landmarks = engine.extract_landmarks(bad_ref)
+
+print(engine.evaluate_sign(landmarks, ref_landmarks))
+print(engine.evaluate_sign(landmarks, bad_ref_landmarks))
