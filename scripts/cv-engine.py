@@ -121,8 +121,6 @@ class SignRecognitionEngine:
 	
 	def normalise_landmarks(self, cv_video: np.ndarray, landmarks: np.ndarray) -> np.ndarray: pass
 
-	def play_video(self, cv_frame: np.ndarray) -> None: pass
-
 	def compute_dtw_distance(self, references: np.ndarray, comparison: np.ndarray) -> np.ndarray:
 		distances = []
 		for refs in references:
@@ -140,7 +138,15 @@ class SignRecognitionEngine:
 		print(f"Result: {closest:.2f} ({result_tier.name})")
 		return result_tier
 		
-	def select_best_take(self, takes_list: list[np.ndarray]) -> int: pass 
+	def select_best_take(self, references: np.ndarray) -> int: 
+		distances = []
+		for i, to_compare in enumerate(references):
+			compare_to = references[:i] + references[i+1:]
+			dtw_distance = self.compute_dtw_distance(compare_to, to_compare)
+			average_distance = float(np.mean(dtw_distance))
+			distances.append(average_distance)
+		best_take = distances.index(min(distances))
+		return best_take
 
 engine = SignRecognitionEngine(str(TASK_FILE))
 videos = engine.videos_to_mp_image(video_paths)
@@ -155,3 +161,5 @@ bad_ref_landmarks = engine.extract_landmarks(bad_ref)
 
 print(engine.evaluate_sign(landmarks, ref_landmarks))
 print(engine.evaluate_sign(landmarks, bad_ref_landmarks))
+
+print(engine.select_best_take(landmarks))
