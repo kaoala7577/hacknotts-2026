@@ -10,7 +10,11 @@ Anki for British Sign Language. The app asks you to sign a phrase. You sign the 
 
 [inDEX Video Demo](https://drive.google.com/file/d/1dIO-Pi9xaRCdBLNFvIe0fnY_dHjQK9Y7/view?usp=sharing)
 
+### Home Page
+
 ![home-screen-2](media/home-screen-2.png)
+
+### Add Card Page
 
 ![review-screen-1](media/review-screen-1.png)
 
