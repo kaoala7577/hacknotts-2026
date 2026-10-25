@@ -1,4 +1,11 @@
-# import everything 
+# import everything
+import os
+import sys
+from ui.design.app import Window
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtCore import Qt
+
 
 def setup_app_directories(): pass # make sure folders exist 
 
@@ -6,6 +13,11 @@ def setup_app_directories(): pass # make sure folders exist
 
 def main(): 
 	setup_app_directories() 
+	app = QApplication(sys.argv)
+	main_window = Window()
+	main_window.show()
+
+	sys.exit(app.exec())
 
 # set up qt application loop 
 

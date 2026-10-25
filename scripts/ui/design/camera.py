@@ -38,9 +38,8 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status)
 
         # path to save
-        self.save_path = (
-            "/home/icarus/Documents/Imperial/Year 2/Hackathons/hacknotts-2026"
-        )
+        self.save_path = os.path.dirname(__file__)
+        
 
         timestamp = time.strftime("%d-%b-%Y-%H_%M_%S")
         #         "%s-%04d-%s.jpg" % (self.current_camera_name, self.save_seq, timestamp),

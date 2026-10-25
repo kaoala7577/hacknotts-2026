@@ -25,7 +25,7 @@ class CameraWorker(QThread):
         cap = cv2.VideoCapture(self.camera_index)
 
         if not cap.isOpened():
-            raise RuntimeError("Could not open webcam at {self.camera_index}")
+            raise RuntimeError(f"Could not open webcam at {self.camera_index}")
         
         while self.is_running:
             ret, frame = cap.read()
@@ -44,7 +44,7 @@ class CameraWorker(QThread):
             height, width, colours = frame.shape
             bytes_per_line = colours * width
             rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            qt_image = QImage(rgb_image.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
+            qt_image = QImage(rgb_image.data, width, height, bytes_per_line, QImage.Format.Format_RGB888).copy()
 
             self.frame_ready.emit(qt_image)
 
