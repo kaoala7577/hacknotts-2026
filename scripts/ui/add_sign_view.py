@@ -178,6 +178,7 @@ class AddSignView(QDialog):
 			self.recorded_frames.append(self.verification_frames)
 		else:
 			self.status.setText(f"Verification failed! {(1-closest)*100:.2f}% match (must be over {(1-SignPassMark.PASS.value)*100:.2f}%). Try again.")
+			return result
 
 		self.swap_last_button()
 		return result
