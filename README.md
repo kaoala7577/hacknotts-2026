@@ -8,6 +8,10 @@ Learning vocab for a foreign language in 2026 is easy. You add flashcards to Ank
 
 Anki for British Sign Language. The app asks you to sign a phrase. You sign the phrase, and via the web cam recording, the app tells you whether your sign matched the correct sign or not. If you fail, the flashcard will be shown again until you pass.
 
+![home-screen](media/home-screen.png)
+
+![add-screen](media/add-screen.png)
+
 ## How We Built It
 - Frontend: PYQt6 - "home page and review screen"
 - Backend: Python, Google MediaPipe, OpenCV, FastDTW - "handles processing the video and comparing it to the answer video"
@@ -32,4 +36,5 @@ Anki for British Sign Language. The app asks you to sign a phrase. You sign the 
 - Add fingerspelling practise
 - The ability to create sign language sentence videos from premade videos of signed words stored in the database
 - Use the Free Spaced Repetition Scheduler (FSRS) which is better
+
 
