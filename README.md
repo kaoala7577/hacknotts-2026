@@ -49,6 +49,7 @@ Allows you to input reference videos and a final verification video to add a sig
 - Should communicate our ideas more at the start so we don't have to do any U turns later
 
 ## What's Next
+- Adding visualisation for the gesture recognition
 - Adding the proper flashcard system rather than just the input system (all the code is there, just not implemented)
 - Implementing the spaced repetition algorithm (SM2) so cards due for review are grabbed from the database
 - Adding review buttons (Again, Hard, Good, Easy)
