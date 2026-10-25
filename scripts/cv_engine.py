@@ -1,3 +1,5 @@
+import time
+
 import numpy as np 
 import cv2
 import mediapipe as mp
@@ -38,18 +40,18 @@ class SignRecognitionEngine:
 	def __init__(self, task_file_path: str = str(Path(__file__).parent / "hand_landmarker.task")):
 		BaseOptions = mp.tasks.BaseOptions
 		HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
-		# HandLandmarkerResult = mp.tasks.vision.HandLandmarkerResult
+		HandLandmarkerResult = mp.tasks.vision.HandLandmarkerResult
 		VisionRunningMode = mp.tasks.vision.RunningMode
 
-		# def print_result(result: HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
-    	# 	print('hand landmarker result: {}'.format(result))
+		def print_result(result: HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
+			print('hand landmarker result: {}'.format(result))
 
 		self.options = HandLandmarkerOptions(
 			base_options=BaseOptions(model_asset_path=task_file_path),
 			num_hands=2,
-			running_mode=VisionRunningMode.VIDEO
-			#running_mode=VisionRunningMode.LIVE_STREAM,
-			#result_callback=print_result
+			# running_mode=VisionRunningMode.VIDEO
+			running_mode=VisionRunningMode.LIVE_STREAM,
+			result_callback=print_result
 		)
 
 	def start_detecting(self) -> None:
@@ -113,43 +115,42 @@ class SignRecognitionEngine:
 	
 	def extract_landmarks(self, cv_frame: np.ndarray) -> np.ndarray:
 		"""
-		puts an array of video frames and their timestamps through the mediapipe hand detection model to generate joint landmarks,
+		puts the latest livestreamed video frame through the mediapipe hand detection model to generate joint landmarks,
 		which are then labelled per hand to provide a uniform 126-node (2 hands * 21 joints * 3 coordinates) output
 
 		Args:
-			cv_frame (np.ndarray): an array containing tuples of video frames and their timestamps
+			cv_frame (np.ndarray): an frame of live webcam input
 
 		Returns:
 			np.ndarray: a 2D float32 array where each row is a flattened array of 126 coordinates for evaluation
 		"""
 		self.start_detecting()
-		sequence_data = []
+
+		# if video data is livestreamed
+		rgb_frame = cv2.cvtColor(cv_frame, cv2.COLOR_BGR2RGB)
+		mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+		detection_result = self.detector.detect_async(image = mp_image, timestamp_ms = int(time.time() * 1000))
 		
-		for frame in cv_frame:
-			video, timestamp_ms = frame
-			detection_result = self.detector.detect_for_video(video, timestamp_ms)
+		left_hand = [0.0] * 63 # 21 joints * 3 (xyz) coords
+		right_hand = [0.] * 63
 
-			left_hand = [0.0] * 63 # 21 joints * 3 (xyz) coords
-			right_hand = [0.] * 63
+		if detection_result and detection_result.hand_landmarks and detection_result.handedness:
+			for landmarks, hand_side in zip(detection_result.hand_landmarks, detection_result.handedness):
+				hand_label = hand_side[0].category_name
 
-			if detection_result.hand_landmarks and detection_result.handedness:
-				for landmarks, hand_side in zip(detection_result.hand_landmarks, detection_result.handedness):
-					hand_label = hand_side[0].category_name
+				flattened = []
+				for landmark in landmarks:
+					flattened.extend([landmark.x, landmark.y, landmark.z])
 
-					flattened = []
-					for landmark in landmarks:
-						flattened.extend([landmark.x, landmark.y, landmark.z])
+				if hand_label == 'Left':
+					left_hand = flattened
+				elif hand_label == 'Right':
+					right_hand = flattened
 
-					if hand_label == 'Left':
-						left_hand = flattened
-					elif hand_label == 'Right':
-						right_hand = flattened
-
-			combined = left_hand + right_hand
-			sequence_data.append(combined)
+		combined = left_hand + right_hand
 		
 		self.stop_detecting()
-		return np.array(sequence_data, dtype=np.float32)
+		return np.array(combined, dtype=np.float32)
 
 	def compute_dtw_distance(self, references: np.ndarray, comparison: np.ndarray) -> np.ndarray:
 		"""
