@@ -8,7 +8,7 @@ Learning vocab for a foreign language in 2026 is easy. You add flashcards to Ank
 
 Anki for British Sign Language. The app asks you to sign a phrase. You sign the phrase, and via the web cam recording, the app tells you whether your sign matched the correct sign or not. If you fail, the flashcard will be shown again until you pass.
 
-![add-new-sign](media/add-new-sign.mp4)
+[add-new-sign](media/add-new-sign.mp4)
 
 ![home-screen-2](media/home-screen-2.png)
 
