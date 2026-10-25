@@ -6,6 +6,7 @@ import os
 import sys
 import numpy as np
 
+from cv_engine import SignPassMark
 from workers import CameraWorker
 
 REQUIRED_TAKES = 3
@@ -25,6 +26,9 @@ class AddSignView(QDialog):
 		self.recorded_frames = [[] for _ in range(REQUIRED_TAKES)]
 		self.is_recording = False
 
+		self.verification_mode = False
+		self.verification_frames = []
+
 		# multithreading for webcam
 		self.camera_worker = CameraWorker(camera_index=0, cv_engine=self.cv_engine)
 		self.camera_worker.frame_ready.connect(self.update_frame)
@@ -34,7 +38,7 @@ class AddSignView(QDialog):
 		# buttons
 		self.recordButton.clicked.connect(self.toggle_recording)
 		self.retryButton.clicked.connect(self.retry_take)
-		self.saveButton.clicked.connect(self.save_new_sign)
+		self.saveButton.clicked.connect(self.verify_sign)
 		self.exitButton.clicked.connect(self.close)
 
 	def update_frame(self, image: QImage) -> None:
@@ -60,11 +64,12 @@ class AddSignView(QDialog):
 		Args:
 			landmarks (np.ndarray): latest hand landmarks
 		"""
-		print(f"Landmarks received: {landmarks.shape if landmarks.size > 0 else 'No landmarks'}")
-		if self.is_recording and self.recorded_takes < REQUIRED_TAKES:
+		if self.is_recording:
 			if np.any(landmarks != 0.0):
-				self.recorded_frames[self.recorded_takes].append(landmarks)
-				print(f"{self.recorded_takes}: {len(self.recorded_frames[self.recorded_takes])} frames")
+				if self.verification_mode:
+					self.verification_frames.append(landmarks)
+				elif self.recorded_takes < REQUIRED_TAKES:
+					self.recorded_frames[self.recorded_takes].append(landmarks)
 
 	def toggle_recording(self) -> None:
 		"""
@@ -77,19 +82,32 @@ class AddSignView(QDialog):
 		if self.is_recording:
 			self.is_recording = False
 			self.camera_worker.stop_recording()
-			print(self.recorded_frames)
 
 			self.recordButton.setText("Record")
 
-			self.recorded_takes += 1
-			if self.recorded_takes < REQUIRED_TAKES:
-				self.status.setText(f"Recorded {self.recorded_takes}/{REQUIRED_TAKES} takes!")
+			if self.verification_mode:
+				if len(self.verification_frames) == 0:
+					self.status.setText("No verification take recorded!")
+					return
+			
+				self.status.setText(f"Verification take recorded!")
+
 			else:
-				self.status.setText("Ready to save!")
+				if len(self.recorded_frames[self.recorded_takes]) > 0:
+					self.recorded_takes += 1
+				
+				if self.recorded_takes < REQUIRED_TAKES:
+					self.status.setText(f"Recorded {self.recorded_takes}/{REQUIRED_TAKES} takes!")
+				else:
+					self.status.setText("Time to verify!")
 		else:
-			if self.recorded_takes >= REQUIRED_TAKES:
-				self.status.setText(f"Already recorded {REQUIRED_TAKES} takes!")
-				return
+			if self.verification_mode:
+				self.verification_frames.clear()
+
+			else:
+				if self.recorded_takes >= REQUIRED_TAKES:
+					self.status.setText(f"Already recorded {REQUIRED_TAKES} takes!")
+					return
 			
 			sign_name = self.lineEdit.text().strip()
 			if not sign_name:
@@ -102,36 +120,76 @@ class AddSignView(QDialog):
 			self.recordButton.setText("Stop Recording")
 			self.status.setText(f"Recording sign '{sign_name}'...")
 
-	def evaluate_verification_take(self) -> None: pass 
-
 	def retry_take(self) -> None: 
-		print(self.recorded_takes)
-		if self.recorded_frames[self.recorded_takes - 1]:
+		if self.verification_mode:
+			self.verification_frames.clear()
+			self.status.setText("Verification take cleared! Try again.")
+		elif self.recorded_frames[self.recorded_takes - 1]:
 			self.recorded_takes -= 1
 			self.recorded_frames[self.recorded_takes].clear()
 			self.status.setText("Last take cleared!")
-			print(self.recorded_takes)
+
+	def can_process(self) -> bool:
+		if self.is_recording:
+			self.status.setText("Stop recording first!")
+			return False
+
+		if self.recorded_takes < REQUIRED_TAKES:
+			self.status.setText(f"Must record {REQUIRED_TAKES} takes before saving!")
+			return False
+
+		sign_name = self.lineEdit.text().strip()
+		if not sign_name:
+			self.status.setText("Enter a sign name first!")
+			return False
+		
+		if not self.recorded_frames:
+			self.status.setText("Nothing to process!")
+			return False
+
+		return True
+	
+	def verify_sign(self) -> None:
+		"""
+		verifies the sign against the recorded takes
+		"""
+		if not self.can_process():
+			return
+
+		self.swap_last_button()
+		self.verification_mode = True
+
+	def compare_sign(self) -> SignPassMark:
+		if not self.can_process():
+			return
+
+		comparison_array = np.array(self.verification_frames, dtype=np.float32)
+		reference_takes = [np.array(take, dtype=np.float32) for take in self.recorded_frames]
+		distances = self.cv_engine.compute_dtw_distance(reference_takes, comparison_array)
+		closest = self.cv_engine.compare_sign(distances)
+		result = self.cv_engine.evaluate_sign(closest)
+
+		print(f"Result: {closest:.2f} ({result.name})")
+		
+		if result is not SignPassMark.FAIL:
+			self.status.setText(f"Verification passed! {100-closest:.2f}% match!")
+			# if exceptional match, add verification frame to reference data too
+			if result == SignPassMark.EXCEPTIONAL:
+				self.recorded_frames.append(self.verification_frames)
+		else:
+			self.status.setText(f"Verification failed! {100-closest:.2f}% match. Try again.")
+
+		self.swap_last_button()
+		return result
 
 	def save_new_sign(self) -> None: 
 		"""
 		push landmarks and sign name to database
 		"""
-		if self.is_recording:
-			self.status.setText("Stop recording first!")
-			return
-
-		if self.recorded_takes < REQUIRED_TAKES:
-			self.status.setText(f"Must record {REQUIRED_TAKES} takes before saving!")
+		if not self.can_process():
 			return
 
 		sign_name = self.lineEdit.text().strip()
-		if not sign_name:
-			self.status.setText("Enter a sign name first!")
-			return
-		
-		if not self.recorded_frames:
-			self.status.setText("Nothing to save!")
-			return
 
 		word_obj = self.db_manager.get_word(sign_name)
 		if word_obj is None:
@@ -153,7 +211,20 @@ class AddSignView(QDialog):
 		self.lineEdit.clear()
 		self.recorded_frames = [[] for _ in range(REQUIRED_TAKES)]
 		self.recorded_takes = 0
+		self.verification_mode = False
+		self.verification_frames.clear()
 
+	def swap_last_button(self) -> None:
+		if self.verification_mode:
+			self.saveButton.setText("Save")
+			self.saveButton.clicked.disconnect()
+			self.saveButton.clicked.connect(self.save_new_sign)
+		else:
+			self.status.setText("Verification time! Record a verification take and compare to save.")
+			self.saveButton.setText("Compare")
+			self.saveButton.clicked.disconnect()
+			self.saveButton.clicked.connect(self.compare_sign)
+	
 	def closeEvent(self, event) -> None:
 		if self.camera_worker.is_running:
 			self.camera_worker.stop()

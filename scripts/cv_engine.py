@@ -176,22 +176,30 @@ class SignRecognitionEngine:
 			distances.append(normalised_distance)
 		return np.array(distances, dtype=np.float32)
 
-	def evaluate_sign(self, references: np.ndarray, comparison: np.ndarray) -> SignPassMark:
+	def compare_sign(self, distances: np.ndarray) -> float:
 		"""
 		evaluation of whether the input video matched the references videos (by taking the closest DTW distance), with a pass/fail
 
 		Args:
-			references (np.ndarray): an array of landmark (float32) data for each reference video
-			comparison (np.ndarray): an array of landmark (float32) data for the input video
+			distances (np.ndarray): an array of DTW distances between the input video and each reference video
+
+		Returns:
+			float: the closest DTW distance between the input video and the reference videos
+		"""
+		closest = float(np.min(distances))
+		return closest
+	
+	def evaluate_sign(self, comparison: float) -> SignPassMark:
+		"""
+		evaluation of whether the input video matched the references videos (by taking the closest DTW distance), with a pass/fail
+
+		Args:
+			comparison (float): the closest DTW distance between the input video and the reference videos
 
 		Returns:
 			SignPassMark: an enum demonstrating whether the input video was close to the reference videos or not
 		"""
-		distances = self.compute_dtw_distance(references, comparison)
-		closest = float(np.min(distances))
-		result_tier = SignPassMark.evaluate(closest)
-		print(f"Result: {closest:.2f} ({result_tier.name})")
-		return result_tier
+		return SignPassMark.evaluate(comparison)
 		
 	def select_best_take(self, references: np.ndarray) -> int: 
 		"""
