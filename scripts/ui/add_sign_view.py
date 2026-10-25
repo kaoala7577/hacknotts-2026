@@ -24,7 +24,7 @@ class AddSignView(QDialog):
 
 
 		# multithreading for webcam
-		self.camera_worker = CameraWorker(camera_index=1, cv_engine=self.cv_engine)
+		self.camera_worker = CameraWorker(camera_index=0, cv_engine=self.cv_engine)
 		self.camera_worker.frame_ready.connect(self.update_frame)
 		self.camera_worker.start()
 

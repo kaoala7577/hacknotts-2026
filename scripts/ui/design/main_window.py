@@ -190,7 +190,8 @@ class Ui_MainWindow:
         self.actionExit.triggered.connect(self.main_window.close)
 
     def _open_add_sign_view(self) -> None:
-        self.switch_to_view(1)
+        dialog = AddSignView(db_manager=self.DB, cv_engine=self.cv_engine)
+        dialog.exec()
 
     def switch_to_view(self, view_index: int) -> None:
         if view_index != 1:
