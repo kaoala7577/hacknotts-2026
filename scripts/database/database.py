@@ -3,7 +3,7 @@ import sqlite3
 import os
 import logging
 import numpy as np
-from ..models.word import Word
+from models.word import Word
 
 class DatabaseManager: 
 	def __init__(self)-> None:

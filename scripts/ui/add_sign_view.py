@@ -1,18 +1,19 @@
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout, QWidget, QPushButton, QLineEdit
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtCore import Qt
 from PyQt6 import uic
-from pathlib import Path
+import os
+import sys
 import numpy as np
 
-from .workers import CameraWorker
+from workers import CameraWorker
 
-class AddSignView(QWidget): 
+class AddSignView(QDialog): 
 	def __init__(self, db_manager, cv_engine): 
 		super().__init__()
 
 		# auto load the UI file
-		ui_path = Path(__file__).resolve().parent / "ui" / "design" / "add_sign.ui"
+		ui_path = os.path.abspath(os.curdir) + "/scripts/ui/design/add_sign.ui"
 		uic.loadUi(str(ui_path), self)
 
 		self.db_manager = db_manager
@@ -21,8 +22,9 @@ class AddSignView(QWidget):
 		self.recorded_frames = [] # list of landmarks
 		self.is_recording = False
 
+
 		# multithreading for webcam
-		self.camera_worker = CameraWorker(camera_index=0, cv_engine=self.cv_engine)
+		self.camera_worker = CameraWorker(camera_index=1, cv_engine=self.cv_engine)
 		self.camera_worker.frame_ready.connect(self.update_frame)
 		self.camera_worker.start()
 
