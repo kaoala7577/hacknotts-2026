@@ -12,11 +12,11 @@ Anki for British Sign Language. The app asks you to sign a phrase. You sign the 
 
 ![home-screen-2](media/home-screen-2.png)
 
-![add-screen-2](media/add-screen-2.png)
-
 ![review-screen-1](media/review-screen-1.png)
 
 ![review-screen-2](media/review-screen-2.png)
+
+![verification-pass](media/verification-pass.png)
 
 ## How We Built It
 - Frontend: PYQt6 - "home page and review screen"
