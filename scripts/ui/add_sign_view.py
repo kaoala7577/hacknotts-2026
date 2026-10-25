@@ -171,13 +171,13 @@ class AddSignView(QDialog):
 
 		print(f"Result: {closest:.2f} ({result.name})")
 		
-		if result is not SignPassMark.FAIL:
-			self.status.setText(f"Verification passed! {100-closest:.2f}% match!")
-			# if exceptional match, add verification frame to reference data too
-			if result == SignPassMark.EXCEPTIONAL:
-				self.recorded_frames.append(self.verification_frames)
+		if result is SignPassMark.PASS:
+			self.status.setText(f"Verification passed! {(1-closest)*100:.2f}% match!")
+		elif result is SignPassMark.EXCEPTIONAL:
+			self.status.setText(f"Exceptional match! {(1-closest)*100:.2f}% match! Saving verification take to reference data.")
+			self.recorded_frames.append(self.verification_frames)
 		else:
-			self.status.setText(f"Verification failed! {100-closest:.2f}% match. Try again.")
+			self.status.setText(f"Verification failed! {(1-closest)*100:.2f}% match (must be over {(1-SignPassMark.PASS.value)*100:.2f}%). Try again.")
 
 		self.swap_last_button()
 		return result
