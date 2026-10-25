@@ -9,6 +9,48 @@ class DatabaseManager:
 	def __init__(self)-> None:
 		db_path = os.path.join(os.path.dirname(__file__), 'signdex.db')
 		self.conn = sqlite3.connect(db_path)
+		self.create_tables()
+
+	def create_tables(self) -> None:
+		cursor = self.conn.cursor()
+		cursor.execute('''
+		CREATE TABLE IF NOT EXISTS words (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			word TEXT UNIQUE NOT NULL
+		)
+		''')
+
+		cursor.execute('''
+		CREATE TABLE IF NOT EXISTS signs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			word_id INTEGER NOT NULL,
+			FOREIGN KEY (word_id) REFERENCES words(id)
+		)
+		''')
+
+		cursor.execute('''
+		CREATE TABLE IF NOT EXISTS sign_references (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			sign_id INTEGER NOT NULL,
+			reference_data BLOB NOT NULL,
+			FOREIGN KEY (sign_id) REFERENCES signs(id)
+		)
+		''')
+
+		cursor.execute('''
+		CREATE TABLE IF NOT EXISTS review_schedule (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			sign_id INTEGER NOT NULL,
+			due_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			ease_factor REAL DEFAULT 2.5,
+			repetitions INTEGER DEFAULT 0,
+			interval INTEGER DEFAULT 1,
+			FOREIGN KEY (sign_id) REFERENCES signs(id)
+		)
+		''')
+		
+		self.conn.commit()
+		cursor.close()
 
 	def close_db(self):
 		self.conn.close()
@@ -39,24 +81,18 @@ class DatabaseManager:
 			logging.warning(f"Word '{word}' not found in the database.")
 			return None
 		
-	def add_sign_variation(self, word_id: int, landmark_blob: bytes, video_path: str) -> bool:
+	def add_sign_variation(self, word_id: int) -> int:
 		cursor = self.conn.cursor()
-		query = '''
-		INSERT INTO signs(word_id, reference_data, video_path)
-		VALUES(?,?,?)'''
-		try:
-			cursor.execute(query, (word_id, landmark_blob, video_path))
-			self.conn.commit()
-		except sqlite3.IntegrityError:
-			logging.warning(f"Sign variation for word_id '{word_id}' already exists in the database.")
-			cursor.close()
-			return False
+		query = 'INSERT INTO signs(word_id) VALUES(?)'
+		cursor.execute(query, (word_id,))
+		self.conn.commit()
+		sign_id = cursor.lastrowid
 		cursor.close()
-		return True
+		return sign_id
 
 	def get_sign_variations(self, word_id: int) -> list:
 		cursor = self.conn.cursor()
-		query = "SELECT id, word_id, reference_data, video_path FROM signs WHERE word_id = ?"
+		query = "SELECT id, word_id, reference_data FROM signs WHERE word_id = ?"
 		cursor.execute(query, (word_id,))
 		results = cursor.fetchall()
 		cursor.close()
@@ -92,4 +128,25 @@ class DatabaseManager:
 
 	def update_due_word(self, word_id: int ) -> None: pass # add args for sm2
 	def update_due_sign(self, sign_id: int ) -> None: pass # add args for sm2
-	def add_sign_reference(self, sign_id: int, landmark_blob: bytes) -> None: pass 
+	
+	def add_sign_reference(self, sign_id: int, landmark_blob: bytes) -> bool: 
+		cursor = self.conn.cursor()
+		query = "INSERT INTO sign_references (sign_id, reference_data) VALUES (?, ?)"
+		try:
+			cursor.execute(query, (sign_id, landmark_blob))
+			self.conn.commit()
+		except sqlite3.IntegrityError:
+			logging.warning(f"Sign reference for sign_id '{sign_id}' already exists in the database.")
+			cursor.close()
+			return False
+		cursor.close()
+		self.conn.commit()
+		return True
+
+	def get_sign_references(self, sign_id: int) -> list:
+		cursor = self.conn.cursor()
+		query = "SELECT id, sign_id, reference_data FROM sign_references WHERE sign_id = ?"
+		cursor.execute(query, (sign_id,))
+		results = cursor.fetchall()
+		cursor.close()
+		return results

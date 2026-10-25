@@ -43,22 +43,30 @@ class SignRecognitionEngine:
 		HandLandmarkerResult = mp.tasks.vision.HandLandmarkerResult
 		VisionRunningMode = mp.tasks.vision.RunningMode
 
-		def print_result(result: HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
-			print('hand landmarker result: {}'.format(result))
+		self.latest_landmark = None
+		self.timestamp = 0
+
+		def callback(result: HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int): 
+			self.latest_landmark = result
+
 
 		self.options = HandLandmarkerOptions(
 			base_options=BaseOptions(model_asset_path=task_file_path),
 			num_hands=2,
 			# running_mode=VisionRunningMode.VIDEO
 			running_mode=VisionRunningMode.LIVE_STREAM,
-			result_callback=print_result
+			result_callback=callback
 		)
+
+		self.detector = mp.tasks.vision.HandLandmarker.create_from_options(self.options)
 
 	def start_detecting(self) -> None:
 		self.detector = mp.tasks.vision.HandLandmarker.create_from_options(self.options)
 
 	def stop_detecting(self) -> None:
-		self.detector.close()
+		if hasattr(self, 'detector') and self.detector:
+			self.detector.close()
+			self.detector = None
 
 	def video_to_mp_image(self, path: str) -> np.ndarray:
 		"""
@@ -95,8 +103,6 @@ class SignRecognitionEngine:
 			frames.append((mp_image, timestamp_ms))
 			frame_index += 1
 		cap.release()
-		cv2.destroyAllWindows()
-
 		return frames
 
 	def videos_to_mp_image(self, paths: np.ndarray) -> np.ndarray:
@@ -124,18 +130,17 @@ class SignRecognitionEngine:
 		Returns:
 			np.ndarray: a 2D float32 array where each row is a flattened array of 126 coordinates for evaluation
 		"""
-		self.start_detecting()
-
 		# if video data is livestreamed
 		rgb_frame = cv2.cvtColor(cv_frame, cv2.COLOR_BGR2RGB)
 		mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-		detection_result = self.detector.detect_async(image = mp_image, timestamp_ms = int(time.time() * 1000))
+		self.detector.detect_async(image = mp_image, timestamp_ms = self.timestamp)
+		self.timestamp += 33 # ~30fps
 		
 		left_hand = [0.0] * 63 # 21 joints * 3 (xyz) coords
 		right_hand = [0.] * 63
 
-		if detection_result and detection_result.hand_landmarks and detection_result.handedness:
-			for landmarks, hand_side in zip(detection_result.hand_landmarks, detection_result.handedness):
+		if self.latest_landmark and self.latest_landmark.hand_landmarks and self.latest_landmark.handedness:
+			for landmarks, hand_side in zip(self.latest_landmark.hand_landmarks, self.latest_landmark.handedness):
 				hand_label = hand_side[0].category_name
 
 				flattened = []
@@ -149,7 +154,6 @@ class SignRecognitionEngine:
 
 		combined = left_hand + right_hand
 		
-		self.stop_detecting()
 		return np.array(combined, dtype=np.float32)
 
 	def compute_dtw_distance(self, references: np.ndarray, comparison: np.ndarray) -> np.ndarray:
